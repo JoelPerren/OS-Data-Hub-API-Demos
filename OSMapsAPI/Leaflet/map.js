@@ -10,7 +10,8 @@ var crs = new L.Proj.CRS(
     });
 
 var map;
-function setupLayer() {
+
+async function setupLayer() {
     if(map) {
         map.remove();
     }
@@ -36,7 +37,7 @@ function setupLayer() {
         maxZoom: 20,
         minZoom: 7,
         center: [51.507222, -0.1275],
-        maxBounds: [[49, -6.5],[61, 2.3]],
+        // maxBounds: [[49, -6.5],[61, 2.3]],
         zoom: 10
     };
     
@@ -90,4 +91,13 @@ function setupLayer() {
     mapOptions.layers = layer;
     // Create the map object and connect it to the 'map' element in the html
     map = L.map('map', mapOptions);
+
+    const regionGeoJSON = 'https://opendata.arcgis.com/datasets/15f49f9c99ae4a16a6a5134258749b8a_0.geojson';
+    const response = await fetch(regionGeoJSON);
+    const geoJSON = await response.json();
+    console.log(geoJSON);
+    
+    geoJsonLayer = new L.geoJSON(geoJSON).addTo(map);
 }
+
+
