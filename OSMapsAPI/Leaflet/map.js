@@ -10,26 +10,17 @@ var crs = new L.Proj.CRS(
     });
 
 var map;
+let geoJsonLayer;
+setupLayer();
 
 async function setupLayer() {
     if(map) {
         map.remove();
     }
 
-    var key = document.getElementById('keyInput').value;
-    var message = document.getElementById('message');
-    var instructions = document.getElementById('instructions');
-    var style = document.getElementById('style').value;
+    var key = 'GqQpJrSmtyWgdetbzAzkfs5FAwiq5OkQ';
+    var style = 'Light 27700';
 
-    if(!key) {
-        message.classList.add("warning");
-        message.textContent = 'To view the map, please enter a valid API key.';
-        instructions.classList.remove("hidden");
-        return;
-    }
-    message.classList.remove("warning");
-    message.textContent = 'To view the map, please enter a valid API key.';
-    instructions.classList.add("hidden");
     
     // Set up default view options for EPSG:3857
     var tileMatrix = 'EPSG:3857';
@@ -37,7 +28,7 @@ async function setupLayer() {
         maxZoom: 20,
         minZoom: 7,
         center: [51.507222, -0.1275],
-        // maxBounds: [[49, -6.5],[61, 2.3]],
+        maxBounds: [[49, -6.5],[61, 2.3]],
         zoom: 10
     };
     
@@ -47,7 +38,7 @@ async function setupLayer() {
         mapOptions.crs = crs;
         mapOptions.maxZoom = 13;
         mapOptions.minZoom = 0;
-        mapOptions.zoom = 4;
+        mapOptions.zoom = 0;
     }
     
     // Set up the main url parameters
@@ -76,18 +67,6 @@ async function setupLayer() {
         }
     );
     
-    // Add error handling in case the tile load fails
-    layer.on('tileerror', function(event) {
-        message.classList.add("warning");
-        message.textContent = 'Could not connect to the API. Ensure you are entering a project API key for a project that contains the OS Maps API';
-        instructions.classList.remove("hidden");
-    });
-    // Remove warning and hide instructions on tile load. This is so tileerror message does not persist when returning to a valid zoom level
-    layer.on('tileloadstart', function(event) {
-        message.classList.remove("warning");
-        message.textContent = 'To view the map, please enter a valid API key.';
-        instructions.classList.add("hidden");
-    });
     mapOptions.layers = layer;
     // Create the map object and connect it to the 'map' element in the html
     map = L.map('map', mapOptions);
@@ -96,7 +75,7 @@ async function setupLayer() {
     const response = await fetch(regionGeoJSON);
     const geoJSON = await response.json();
     console.log(geoJSON);
-    const geoJsonLayer = new L.geoJSON(geoJSON).addTo(map);
+    geoJsonLayer = new L.geoJSON(geoJSON, {onEachFeature: mouseEventListeners}).addTo(map);
 
     const allDeathData = await getDeathsData();
 
@@ -111,6 +90,8 @@ async function setupLayer() {
     });
 
     console.log(await getDeathsData());
+    info.addTo(map);
+    legend.addTo(map);
 }
 
 const getDeathsData = async () => {
@@ -143,4 +124,74 @@ const getStyle = layer => {
     };
 }
 
+// Event listeners
+const highlightFeature = e => {
+    const layer = e.target;
 
+    layer.setStyle({
+        weight: 5,
+        color: '#666',
+        dashArray: '',
+        fillOpacity: 0.7
+    });
+
+    if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+        layer.bringToFront();
+    }
+
+    info.update(layer.feature.properties.deaths[0]);
+}
+
+const resetHighlight = e => {
+    e.target.setStyle(getStyle(e.target));
+    info.update();
+    // geoJsonLayer.resetStyle(e.target);
+}
+
+const zoomToFeature = e => {
+    map.fitBounds(e.target.getBounds());
+}
+
+const mouseEventListeners = (feature, layer) => {
+    layer.on({
+        mouseover: highlightFeature,
+        mouseout: resetHighlight,
+        click: zoomToFeature
+    });
+}
+
+// Info Window
+const info = L.control();
+
+info.onAdd = function (map) {
+    this._div = L.DomUtil.create('div', 'info'); // create a div with a class "info"
+    this.update();
+    return this._div;
+};
+
+// method that we will use to update the control based on feature properties passed
+info.update = function (props) {
+    // this._div.innerHTML = `<h4>Covid Deaths on ${props.date}</h4>`
+    this._div.innerHTML = (props ?
+        `<h4>Covid Deaths on ${props.date}</h4><b> ${props.areaName}</b><br /> ${props.newDeaths28DaysByDeathDate} people`
+        : 'Hover over a region');
+};
+
+// Legend
+var legend = L.control({position: 'bottomright'});
+
+legend.onAdd = function (map) {
+
+    var div = L.DomUtil.create('div', 'info legend'),
+        grades = [0, 5, 10, 15, 20, 25, 30, 35],
+        labels = [];
+
+    // loop through our density intervals and generate a label with a colored square for each interval
+    for (var i = 0; i < grades.length; i++) {
+        div.innerHTML +=
+            '<i style="background:' + getColour(grades[i] + 1) + '"></i> ' +
+            grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+');
+    }
+
+    return div;
+};
