@@ -11,6 +11,7 @@ var crs = new L.Proj.CRS(
 
 var map;
 let geoJsonLayer;
+let date = '2020-10-10';
 setupLayer();
 
 async function setupLayer() {
@@ -95,7 +96,7 @@ async function setupLayer() {
 }
 
 const getDeathsData = async () => {
-    const covidDataUrl = 'https://api.coronavirus.data.gov.uk/v1/data?filters=areaType=region;date=2020-10-10&structure={"date":"date","areaName":"areaName","newDeaths28DaysByDeathDate":"newDeaths28DaysByDeathDate"}';
+    const covidDataUrl = 'https://api.coronavirus.data.gov.uk/v1/data?filters=areaType=region&structure={"date":"date","areaName":"areaName","newDeaths28DaysByDeathDate":"newDeaths28DaysByDeathDate"}';
     const response = await fetch(covidDataUrl);
     const json = await response.json();
 
