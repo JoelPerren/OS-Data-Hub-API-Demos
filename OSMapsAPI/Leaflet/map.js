@@ -96,8 +96,51 @@ async function setupLayer() {
     const response = await fetch(regionGeoJSON);
     const geoJSON = await response.json();
     console.log(geoJSON);
-    
-    geoJsonLayer = new L.geoJSON(geoJSON).addTo(map);
+    const geoJsonLayer = new L.geoJSON(geoJSON).addTo(map);
+
+    const allDeathData = await getDeathsData();
+
+    geoJsonLayer.eachLayer((layer) =>{
+        const layerName = layer.feature.properties.rgn19nm;
+        const deaths = allDeathData.filter(regionData => regionData.areaName === layerName);
+        layer.feature.properties.deaths = deaths;
+        
+        layer.setStyle(getStyle(layer));
+
+        console.log(layer)
+    });
+
+    console.log(await getDeathsData());
+}
+
+const getDeathsData = async () => {
+    const covidDataUrl = 'https://api.coronavirus.data.gov.uk/v1/data?filters=areaType=region;date=2020-10-10&structure={"date":"date","areaName":"areaName","newDeaths28DaysByDeathDate":"newDeaths28DaysByDeathDate"}';
+    const response = await fetch(covidDataUrl);
+    const json = await response.json();
+
+    return json.data;
+}
+
+const getColour = d => {
+    return d > 35 ? '#800026' :
+           d > 30  ? '#BD0026' :
+           d > 25  ? '#E31A1C' :
+           d > 20  ? '#FC4E2A' :
+           d > 15   ? '#FD8D3C' :
+           d > 10   ? '#FEB24C' :
+           d > 5   ? '#FED976' :
+                      '#FFEDA0';
+}
+
+const getStyle = layer => {
+    return {
+        fillColor: getColour(layer.feature.properties.deaths[0].newDeaths28DaysByDeathDate),
+        weight: 2,
+        opacity: 1,
+        color: 'white',
+        dashArray: '3',
+        fillOpacity: 0.7
+    };
 }
 
 
