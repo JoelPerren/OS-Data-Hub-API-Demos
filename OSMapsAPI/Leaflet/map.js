@@ -82,7 +82,7 @@ async function setupLayer() {
 
     geoJsonLayer.eachLayer((layer) =>{
         const layerName = layer.feature.properties.rgn19nm;
-        const deaths = allDeathData.filter(regionData => regionData.areaName === layerName);
+        const deaths = allDeathData.filter(regionData => regionData.areaName === layerName && regionData.date === date);
         layer.feature.properties.deaths = deaths;
         
         layer.setStyle(getStyle(layer));
