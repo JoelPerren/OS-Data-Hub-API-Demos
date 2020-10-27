@@ -11,7 +11,10 @@ var crs = new L.Proj.CRS(
 
 var map;
 let geoJsonLayer;
-let date = '2020-10-10';
+let allDeathData;
+const startDate = moment('2020-03-02');
+let date = moment('2020-03-02');
+// let date = '2020-10-10';
 setupLayer();
 
 async function setupLayer() {
@@ -75,25 +78,32 @@ async function setupLayer() {
     const regionGeoJSON = 'https://opendata.arcgis.com/datasets/15f49f9c99ae4a16a6a5134258749b8a_0.geojson';
     const response = await fetch(regionGeoJSON);
     const geoJSON = await response.json();
-    console.log(geoJSON);
     geoJsonLayer = new L.geoJSON(geoJSON, {onEachFeature: mouseEventListeners}).addTo(map);
 
-    const allDeathData = await getDeathsData();
+    allDeathData = await getDeathsData();
 
-    geoJsonLayer.eachLayer((layer) =>{
-        const layerName = layer.feature.properties.rgn19nm;
-        const deaths = allDeathData.filter(regionData => regionData.areaName === layerName && regionData.date === date);
-        layer.feature.properties.deaths = deaths;
-        
-        layer.setStyle(getStyle(layer));
-
-        console.log(layer)
-    });
-
-    console.log(await getDeathsData());
+    styleLayersOnDate();
     info.addTo(map);
     legend.addTo(map);
 }
+
+
+const styleLayersOnDate = () =>{
+
+    geoJsonLayer.eachLayer((layer) =>{
+        const layerName = layer.feature.properties.rgn19nm;
+        const deaths = allDeathData.filter(regionData => {
+            let regionMatch = regionData.areaName === layerName;
+            let covidDate = moment(regionData.date);
+            let dateMatch = covidDate.isSame(date);
+            return regionMatch && dateMatch;
+        });
+        layer.feature.properties.deaths = !(deaths) || (deaths.length == 0) ? [{areaName: layerName, date: `${date.format('YYYY-MM-DD')}`, newDeaths28DaysByDeathDate: 0 }] : deaths;
+        layer.setStyle(getStyle(layer));
+    });
+
+
+};
 
 const getDeathsData = async () => {
     const covidDataUrl = 'https://api.coronavirus.data.gov.uk/v1/data?filters=areaType=region&structure={"date":"date","areaName":"areaName","newDeaths28DaysByDeathDate":"newDeaths28DaysByDeathDate"}';
@@ -104,14 +114,23 @@ const getDeathsData = async () => {
 }
 
 const getColour = d => {
-    return d > 35 ? '#800026' :
-           d > 30  ? '#BD0026' :
-           d > 25  ? '#E31A1C' :
-           d > 20  ? '#FC4E2A' :
-           d > 15   ? '#FD8D3C' :
-           d > 10   ? '#FEB24C' :
-           d > 5   ? '#FED976' :
-                      '#FFEDA0';
+    return  d > 200 ? '#0a0000' :
+            d > 150 ? '#270009' :
+            d > 130 ? '#450013' :
+            d > 110 ? '#62001C' :
+            d > 95  ? '#800026' :
+            d > 80  ? '#9F1327' :
+            d > 65  ? '#BE2728' :
+            d > 50  ? '#DD3A29' :
+            d > 35  ? '#FC4E2A' :
+            d > 30  ? '#FC6D33' :
+            d > 25  ? '#FD8D3C' :
+            d > 20  ? '#FDA64F' :
+            d > 15  ? '#FDBF62' :
+            d > 10  ? '#FED976' :
+            d > 5   ? '#FEE5A0' :
+            d > 0   ? '#FEF2CA' :
+                      '#FFFFF4';
 }
 
 const getStyle = layer => {
@@ -184,7 +203,7 @@ var legend = L.control({position: 'bottomright'});
 legend.onAdd = function (map) {
 
     var div = L.DomUtil.create('div', 'info legend'),
-        grades = [0, 5, 10, 15, 20, 25, 30, 35],
+        grades = [0, 5, 10, 15, 20, 25, 30, 35, 50, 65, 80, 95, 110, 130, 150],
         labels = [];
 
     // loop through our density intervals and generate a label with a colored square for each interval
@@ -195,4 +214,37 @@ legend.onAdd = function (map) {
     }
 
     return div;
+};
+
+//Slider
+var slider = document.getElementById("myRange");
+var output = document.getElementById("demo");
+var button = document.getElementById("play");
+output.innerHTML = startDate.format('YYYY-MM-DD');
+
+slider.oninput = function() {
+    date = getDateXDaysFromStartDate(this.value);
+    styleLayersOnDate();
+    output.innerHTML = date.format('YYYY-MM-DD');
+};
+
+button.onclick = () =>{
+
+    let interval = setInterval(() => {
+        slider.value = parseInt(slider.value) + 1;
+        slider.oninput();
+        if(slider.value === '237'){
+            clearInterval(interval);
+        }
+    }, 200);
+
+
+
+};
+
+
+const getDateXDaysFromStartDate = (days) =>{
+    var newDate = moment(startDate);
+    newDate.add(days, 'd');
+    return newDate
 };
